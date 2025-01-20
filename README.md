@@ -31,6 +31,8 @@ Ce repository contient un résumé du travail effectué, suivant le sujet prése
     - [5.3. Servers Pool](#53-servers-pool)
     - [5.4. Monitoring](#54-monitoring)
     - [5.5. VPN](#55-vpn)
+    - [5.6. Nexus](#56-nexus)
+  - [6. Conclusion](#6-conclusion)
 
 ## 1. Définition de la stratégie DevOps
 
@@ -335,3 +337,19 @@ Le monitoring des applications est assuré par Grafana et Prometheus. Ces deux o
 Le VPN Tailscale est utilisé pour la connexion sécurisée entre les serveurs. Il permet de connecter les serveurs entre eux de manière sécurisée et de les rendre accessibles uniquement aux personnes autorisées.
 
 [Lien vers le serveur Tailscale](https://github.com/MicroFlow-Ynov/Infra/blob/main/vpn/docker-compose.yml)
+
+### 5.6. Nexus
+
+Une machine dédiée est utilisée pour Nexus Repository. Cet outil permet de gérer les dépôts de paquets et de les rendre accessibles aux développeurs. Il est configuré sur les serveurs de production et de staging permettant à quiconque de brancher sa configuration Nexus Repository sans avoir à la reconfigurer et lancer d'autres instances.
+
+![Nexus](./ressources/img/nexu.png)
+
+Toutes les librairies importantes sont disponibles sur Nexus Repository, permettant aux développeurs de les utiliser sans avoir à les télécharger à chaque fois. L'installation ici de nexus permet également de laisser libre aux développeurs de pouvoir push leurs propres librairies sur le serveur Nexus Repository pour les autres développeurs.
+
+## 6. Conclusion
+
+L'organisation MicroFlow-Ynov a mis en place une stratégie DevOps complète pour la mise en place de l'intégration continue. Cette stratégie est basée sur l'automatisation des étapes, la gestion des branches et des releases, la gestion des notifications et la collaboration entre équipes, le suivi de la qualité et des bonnes pratiques DevOps.
+
+Cette stratégie a permis à l'organisation de gagner en efficacité et en qualité, tout en réduisant les risques et les coûts. Elle a également permis de renforcer la collaboration entre les équipes et d'améliorer la communication.
+
+---
