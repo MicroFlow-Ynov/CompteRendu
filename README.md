@@ -60,9 +60,9 @@ Ce dernier permet de rassembler les issues, user stories et autres tâches à r�
 
 ![Issue](./ressources/img/issue.png)
 
-Chaque issue porte des règles et conventions dans son nomenclature et sa description. Actuellement, les issues doivent être nommées avec le préfix MFY (MicroFlow-Ynov) suivi de l'identifiant de l'issue. La description doit contenir un template de description pour faciliter la compréhension de l'issue.
+Chaque issue porte des règles et conventions dans sa nomenclature et sa description. Actuellement, les issues doivent être nommées avec le préfix MFY (MicroFlow-Ynov) suivi de l'identifiant de l'issue. La description doit contenir un template de description pour faciliter la compréhension de l'issue.
 
-Elle est ensuite catégorisée dans les différents tags disponibles (Bug, Documentation, Feature...).
+Elle est ensuite catégorisée dans les différents tags disponibles (`Bug`, `Documentation`, `Feature`...).
 
 On peut ensuite créer la branche en question et l'assigner au repository, pour que le développeur puisse travailler dessus.
 
@@ -74,7 +74,7 @@ Pour la mise en place de l'intégration continue, plusieurs outils sont nécessa
 
 | Outil                | Description                                                                                           |
 | -------------------- | ----------------------------------------------------------------------------------------------------- |
-| **GitHub**           | Plateforme de gestion de code source et de projets                                                    |
+| **GitHub**           | Plateforme de gestion de code source et de projets et gestionnaire de packages                        |
 | **Docker (Compose)** | Outil de conteneurisation pour les microservices                                                      |
 | **Nexus Repository** | Outil de gestion de dépôts de paquets                                                                 |
 | **SonarQube**        | Outil d'analyse de la qualité du code                                                                 |
@@ -89,13 +89,66 @@ Pour la mise en place de l'intégration continue, plusieurs outils sont nécessa
 
 ### 2.1. Automatisation des étapes
 
+Le pipeline CI/CD est mis en place dans le repository [WebInterface](https://github.com/MicroFlow-Ynov/WebInterface/actions). Il est composé de plusieurs étapes:
+
+- 1. Control Compliance: Analyse minimale du code pour vérifier qu'il respecte les conventions de code à base des tests fonctionnels, d'un linter de base, et d'un build. Il permet une non regression générale du code et de pouvoir rapidement détecter des erreurs de base.
+
+> Le control compliance s'applique sur les branches `feature/*` et `bugfix/*` et dans ce cas, s'arrête à ce moment.
+
+- 2. SonarQube: Analyse de la qualité du code pour vérifier que le code respecte les conventions de code et les bonnes pratiques de développement.
+
+> Le SonarQube s'applique en plus dès lors que le code est mergé dans la branche `release`.
+
+![SonarQube](./ressources/img/sonar.png)
+
+```yml
+# SonarQube scan on self-hosted SonarQube
+- name: SonarQube Scan
+  uses: sonarsource/sonarcloud-github-action@master
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+    SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+    SONAR_PROJECT_NAME: ${{ secrets.SONAR_PROJECT_NAME }}
+```
+
+> Si ce dernier est à succès, alors le code est mergé dans la branche `main`.
+
+- 3. Docker Build: Construction de l'image Docker pour le projet et publication sur le registry Docker.
+
+![container](./ressources/img/container.png)
+![container2](./ressources/img/container1.png)
+
+- 4. Génération de la documentation: Génération de la documentation développeur et utilisateur pour le projet.
+- 5. Déploiement: Déploiement de l'application sur un serveur de stagging pour vérifier que l'application fonctionne correctement.
+- 6. Production: Déploiement de l'application sur un serveur de production pour mettre en ligne l'application.
+- 7. Notification: Envoi de notifications sur Discord pour informer les équipes de l'état final du déploiement avec un résumé complet du changelog.
+
 ## 3. Gestion des branches et des releases
 
 ### 3.1. Gestion des branches
 
+Dans le repository [WebInterface](), la gestion des branches est faite de manière classique. On retrouve les branches suivantes:
+
+- `main`: branche principale du projet, contenant le code en production, qui est protégée et ne peut être modifiée que par des Pull Requests
+- `release/*.*.*`: branche de release, contenant le code en pré-production, qui est protégée et ne peut être modifiée que par des Pull Requests
+- `bugfix/*`: branche de correction de bug
+- `feature/*`: branche de développement de fonctionnalité
+
+![Branches](./ressources/img/branchmainrule.png)
+
+Les branches de `bugfix` et `feature` sont créées à partir de la branche `release` en cours. Une fois la fonctionnalité ou le bugfix terminé, une Pull Request est créée pour merger la branche dans la branche `release`.
+
+Toutes les branches sont protégées et ne peuvent être modifiées que par des Pull Requests. Les Pull Requests sont soumises à des règles de validation avant de pouvoir être mergées.
+
 ### 3.2. Code reviews
 
+A chacune des Pull Requests, une code review est demandée à un ou plusieurs reviewers. Les reviewers sont choisis en fonction de leur expertise sur le code à reviewer. Les reviewers doivent valider la Pull Request avant qu'elle ne puisse être mergée.
+
 ### 3.3. Releases
+
+Les releases prennent la direction de la branche `release/*.*.*`. Une fois la branche `release` prête, c'est à dire, que le backlog est vide, que les tests sont passés, que la qualité du code est bonne, alors la branche `release` est mergée dans la branche `main`.
 
 ## 4. Gestion des notifications et collaboration entre équipes
 
@@ -108,3 +161,31 @@ Pour la mise en place de l'intégration continue, plusieurs outils sont nécessa
 ### 5.1. Analyse de la qualité du code
 
 ### 5.2. Automatisation des tests
+
+### 5.3. Servers Pool
+
+L'etnièreté de l'infrastructure repose sous un Proxmox, qui permet de gérer les machines virtuelles et les conteneurs. Les serveurs sont configurés de la manière suivante:
+
+- **Serveur de production**: Serveur principal, hébergeant les applications en production à l'aide de portainer. Il est configuré avec un Nginx pour la mise en production des applications, un Tailscale pour la connexion sécurisée entre les serveurs, un Grafana et un Prometheus pour le monitoring des applications.
+- **Serveur de staging**: Serveur de pré-production, hébergeant les applications en pré-production. Il est configuré de la même manière que le serveur de production.
+- **Serveur de développement**: Plusieurs petits serveurs de développement, hébergeant les applications en développement. Il est configuré de la même manière que le serveur de production.
+
+[README Bonne pratiques de l'installation de services sur les serveurs](https://github.com/MicroFlow-Ynov/Infra/blob/main/prod/README.md)
+
+> Interface de gestion Proxmox
+
+![Proxmox](./ressources/img/proxmox.png)
+
+### 5.4. Monitoring
+
+Le monitoring des applications est assuré par Grafana et Prometheus. Ces deux outils permettent de suivre les performances des applications en temps réel et de détecter les problèmes avant qu'ils n'impactent les utilisateurs. Ces deux outils sont configurés sur les serveurs de production et de staging permettant à quiconque de brancher sa configuration Grafana sans avoir à la reconfigurer et lancer d'autres instances.
+
+![Grafana](./ressources/img/grafana.png)
+
+[Lien vers le compose de Monitoring](https://github.com/MicroFlow-Ynov/Infra/blob/main/monitoring/docker-compose.yml)
+
+### 5.5. VPN
+
+Le VPN Tailscale est utilisé pour la connexion sécurisée entre les serveurs. Il permet de connecter les serveurs entre eux de manière sécurisée et de les rendre accessibles uniquement aux personnes autorisées.
+
+[Lien vers le serveur Tailscale](https://github.com/MicroFlow-Ynov/Infra/blob/main/vpn/docker-compose.yml)
