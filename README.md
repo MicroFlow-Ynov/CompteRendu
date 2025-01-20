@@ -28,6 +28,9 @@ Ce repository contient un résumé du travail effectué, suivant le sujet prése
   - [5. Suivi de la qualité et des bonnes pratiques DevOps](#5-suivi-de-la-qualité-et-des-bonnes-pratiques-devops)
     - [5.1. Analyse de la qualité du code](#51-analyse-de-la-qualité-du-code)
     - [5.2. Automatisation des tests](#52-automatisation-des-tests)
+    - [5.3. Servers Pool](#53-servers-pool)
+    - [5.4. Monitoring](#54-monitoring)
+    - [5.5. VPN](#55-vpn)
 
 ## 1. Définition de la stratégie DevOps
 
@@ -150,17 +153,155 @@ A chacune des Pull Requests, une code review est demandée à un ou plusieurs re
 
 Les releases prennent la direction de la branche `release/*.*.*`. Une fois la branche `release` prête, c'est à dire, que le backlog est vide, que les tests sont passés, que la qualité du code est bonne, alors la branche `release` est mergée dans la branche `main`.
 
+Sur chaque release est alors installé le package avec le container docker prêt à l'emploi directement dans GitHub Packages permettant une centralisation des packages et une facilité de déploiement.
+
+![Container](./ressources/img/container1.png)
+
 ## 4. Gestion des notifications et collaboration entre équipes
 
 ### 4.1. Notifications
 
+Lors d'un succès ou bien d'un échec de pipeline, une notification est envoyée sur Discord pour informer les équipes de l'état du déploiement. La notification contient un résumé complet du changelog, des étapes effectuées, des erreurs rencontrées, et des correctifs apportés.
+
+![Discord](./ressources/img/discord.png)
+
+```yml
+name: Discord Notification
+
+on:
+  workflow_run:
+    workflows: ["Deploy to Production"]
+    types:
+      - completed
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Get Changelog
+        id: get_changelog
+        run: |
+          echo "CHANGELOG=$(grep -A 5 '## \[' CHANGELOG.md | tail -n 5 | tr '\n' ' ')" >> $GITHUB_ENV
+
+      - name: Send message to Discord on failure
+        if: failure()
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          CHANGELOG: ${{ env.CHANGELOG }}
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+          -d '{
+                "content": "CI/CD Pipeline Failed!",
+                "embeds": [
+                  {
+                    "title": "Deployment Status",
+                    "description": "The latest deployment has failed.",
+                    "color": 16711680,
+                    "fields": [
+                      {
+                        "name": "Commit Message",
+                        "value": "'"${COMMIT_MESSAGE}"'"
+                      },
+                      {
+                        "name": "Changelog",
+                        "value": "'"${CHANGELOG}"'"
+                      }
+                    ],
+                    "footer": {
+                      "text": "Check the details in the repository."
+                    }
+                  }
+                ],
+                "components": [
+                  {
+                    "type": 1,
+                    "components": [
+                      {
+                        "type": 2,
+                        "label": "View Repository",
+                        "style": 5,
+                        "url": "https://github.com/MicroFlow-Ynov"
+                      }
+                    ]
+                  }
+                ]
+              }' \
+          ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      - name: Send message to Discord on success
+        if: success()
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          CHANGELOG: ${{ env.CHANGELOG }}
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+          -d '{
+                "content": "CI/CD Pipeline Succeeded!",
+                "embeds": [
+                  {
+                    "title": "Deployment Status",
+                    "description": "The latest deployment was successful.",
+                    "color": 65280,
+                    "fields": [
+                      {
+                        "name": "Commit Message",
+                        "value": "'"${COMMIT_MESSAGE}"'"
+                      },
+                      {
+                        "name": "Changelog",
+                        "value": "'"${CHANGELOG}"'"
+                      }
+                    ],
+                    "footer": {
+                      "text": "Check the details in the repository."
+                    }
+                  }
+                ],
+                "components": [
+                  {
+                    "type": 1,
+                    "components": [
+                      {
+                        "type": 2,
+                        "label": "View Repository",
+                        "style": 5,
+                        "url": "https://github.com/MicroFlow-Ynov"
+                      }
+                    ]
+                  }
+                ]
+              }' \
+          ${{ secrets.DISCORD_WEBHOOK_URL }}
+```
+
 ### 4.2. Collaboration
+
+![Welcome](./ressources/img/welcome.png)
+
+L'entièreté de l'équipe se retrouve sous GitHub Organisations. Chaque membre de l'équipe a un rôle bien défini et des permissions adaptées à son rôle. Les permissions sont gérées par les owners de l'organisation.
+
+![Team](./ressources/img/teams.png)
+
+Les différentes équipes profitent d'un forum dans l'onglet discussion permettant de discuter aussi bien en "public" qu'en "privé" sur des sujets divers et variés.
+
+![Forum](./ressources/img/forum.png)
 
 ## 5. Suivi de la qualité et des bonnes pratiques DevOps
 
 ### 5.1. Analyse de la qualité du code
 
+L'analyse de la qualité du code est assurée par SonarQube. Cet outil permet de suivre la qualité du code en temps réel et de détecter les problèmes avant qu'ils n'impactent les utilisateurs. SonarQube est configuré sur les serveurs de production et de staging permettant à quiconque de brancher sa configuration SonarQube sans avoir à la reconfigurer et lancer d'autres instances.
+
+![SonarQube](./ressources/img/sonar.png)
+
 ### 5.2. Automatisation des tests
+
+Avant Sonarqube, durant les CI/CD, un contrôle de conformité est effectué pour vérifier que le code respecte les conventions de code à base des tests fonctionnels, d'un linter de base, et d'un build. Il permet une non regression générale du code et de pouvoir rapidement détecter des erreurs de base. Ces tests sont réalisés sur plusieurs versions de node afin d'assurer la compatibilité du code.
+
+![Control Compliance](./ressources/img/controle.png)
 
 ### 5.3. Servers Pool
 
