@@ -80,6 +80,7 @@ Pour la mise en place de l'intégration continue, plusieurs outils sont nécessa
 | **GitHub**           | Plateforme de gestion de code source et de projets et gestionnaire de packages                        |
 | **Docker (Compose)** | Outil de conteneurisation pour les microservices                                                      |
 | **Nexus Repository** | Outil de gestion de dépôts de paquets                                                                 |
+| **Husky**            | Outil de pré-commit pour les hooks git                                                                |
 | **SonarQube**        | Outil d'analyse de la qualité du code                                                                 |
 | **Discord**          | Gestion des notifications et collaboration entre équipes                                              |
 | **Proxmox**          | Outil de virtualisation pour les serveurs pour fournir des machines de production et de développement |
@@ -93,6 +94,10 @@ Pour la mise en place de l'intégration continue, plusieurs outils sont nécessa
 ### 2.1. Automatisation des étapes
 
 Le pipeline CI/CD est mis en place dans le repository [WebInterface](https://github.com/MicroFlow-Ynov/WebInterface/actions). Il est composé de plusieurs étapes:
+
+- 0. Avant chaque commit, husky est utilisé pour passer la banque de test sur l'environnement de développement. Il permet un premier passage des tests dans un environnement rodé et de pouvoir rapidement détecter des erreurs de base.
+
+![Husky](./ressources/img/husky.png)
 
 - 1. Control Compliance: Analyse minimale du code pour vérifier qu'il respecte les conventions de code à base des tests fonctionnels, d'un linter de base, et d'un build. Il permet une non regression générale du code et de pouvoir rapidement détecter des erreurs de base.
 
